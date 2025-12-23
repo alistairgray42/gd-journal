@@ -3,6 +3,8 @@
 Grateful Dead Setlist Book Generator
 
 Generates beautifully formatted HTML/PDF books from setlist data.
+Features intelligent pagination that avoids orphaned content and
+creates intentional two-page spreads for longer shows.
 
 Usage:
     python generate.py --help
@@ -18,8 +20,30 @@ import csv
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Optional
+
+
+# Page geometry constants (in points, 1pt = 1/72 inch)
+# Page: 6in × 9in = 432pt × 648pt
+# Margins: 0.75in top, 0.625in sides, 0.875in bottom
+PAGE_CONTENT_HEIGHT = 500  # Conservative usable height in points
+PAGE_CONTENT_WIDTH = 342   # 4.75in in points
+
+# Typography measurements (approximate, based on 11pt base)
+HEADER_HEIGHT = 65         # Date + venue + location
+NOTES_BASE_HEIGHT = 25     # Base height for notes
+NOTES_CHARS_PER_LINE = 55  # Approximate characters per line
+LINE_HEIGHT = 18           # Song line height (11pt × 1.6)
+SET_LABEL_HEIGHT = 22      # Set label + margin
+SET_GAP = 12               # Gap between sets
+
+
+class LayoutType(Enum):
+    SINGLE = "single"           # Fits on one page normally
+    COMPACT = "compact"         # Fits with tighter spacing
+    SPREAD = "spread"           # Needs two-page spread
 
 
 @dataclass
@@ -30,6 +54,12 @@ class Set:
 
     def __len__(self) -> int:
         return len(self.songs)
+
+    def estimate_height(self) -> float:
+        """Estimate height in points"""
+        height = SET_LABEL_HEIGHT
+        height += len(self.songs) * LINE_HEIGHT
+        return height
 
 
 @dataclass
@@ -70,6 +100,77 @@ class Show:
 
     def __len__(self) -> int:
         return sum(len(s) for s in self.sets)
+
+    def estimate_header_height(self) -> float:
+        """Estimate header height including notes"""
+        height = HEADER_HEIGHT
+        if self.notes:
+            # Estimate wrapped lines for notes
+            note_lines = max(1, len(self.notes) // NOTES_CHARS_PER_LINE + 1)
+            height += NOTES_BASE_HEIGHT + (note_lines - 1) * LINE_HEIGHT
+        return height
+
+    def estimate_total_height(self) -> float:
+        """Estimate total height in points"""
+        height = self.estimate_header_height()
+        for i, s in enumerate(self.sets):
+            height += s.estimate_height()
+            if i < len(self.sets) - 1:
+                height += SET_GAP
+        return height
+
+    def classify_layout(self) -> LayoutType:
+        """Determine the best layout strategy for this show"""
+        total_height = self.estimate_total_height()
+
+        # Comfortable single page
+        if total_height <= PAGE_CONTENT_HEIGHT * 0.92:
+            return LayoutType.SINGLE
+
+        # Can fit with compact styling (reduce line-height, gaps)
+        # Compact mode saves roughly 15% vertical space
+        if total_height <= PAGE_CONTENT_HEIGHT * 1.08:
+            return LayoutType.COMPACT
+
+        # Needs a two-page spread
+        return LayoutType.SPREAD
+
+    def find_split_point(self) -> int:
+        """
+        Find the optimal index to split sets for a two-page spread.
+        Returns the index of the first set that should go on page 2.
+
+        Strategy: Put header + first set(s) on verso (left page),
+        remaining sets on recto (right page).
+        """
+        if len(self.sets) <= 1:
+            return 1  # Can't split a single set
+
+        header_height = self.estimate_header_height()
+        page_budget = PAGE_CONTENT_HEIGHT
+
+        # Try to fit header + first N sets on page 1
+        cumulative_height = header_height
+        split_after = 0
+
+        for i, s in enumerate(self.sets):
+            set_height = s.estimate_height()
+            if i > 0:
+                set_height += SET_GAP
+
+            if cumulative_height + set_height <= page_budget * 0.95:
+                cumulative_height += set_height
+                split_after = i + 1
+            else:
+                break
+
+        # Ensure we split somewhere reasonable
+        if split_after == 0:
+            split_after = 1  # At minimum, first set on page 1
+        if split_after >= len(self.sets):
+            split_after = len(self.sets) - 1  # Keep at least one set for page 2
+
+        return split_after
 
 
 def parse_shows(data_path: Path) -> list[Show]:
@@ -146,7 +247,6 @@ def format_song(song: str) -> tuple[str, bool, Optional[str]]:
         song = song[:-1]
         note = "*"
     elif "*" in song:
-        # Handle things like "Song Name*" or "Song Name* (with guest)"
         match = re.match(r'^(.+?)(\*.*?)$', song)
         if match:
             song = match.group(1)
@@ -155,56 +255,114 @@ def format_song(song: str) -> tuple[str, bool, Optional[str]]:
     return song.strip(), is_segue, note
 
 
-def render_show_html(show: Show) -> str:
-    """Render a single show as HTML"""
-    html = ['<article class="show">']
+def render_set_html(s: Set) -> str:
+    """Render a single set as HTML"""
+    lines = []
+    lines.append('    <section class="set">')
 
-    # Header
-    html.append('  <header class="show-header">')
-    html.append(f'    <h2 class="show-date">{show.formatted_date}</h2>')
-    html.append(f'    <p class="show-venue">{show.venue_display}</p>')
-    html.append(f'    <p class="show-location">{show.location_display}</p>')
+    label_html = f'<h3 class="set-label">Set {s.label}'
+    if s.annotation:
+        label_html += f' <span class="set-annotation">({s.annotation})</span>'
+    label_html += '</h3>'
+    lines.append(f'      {label_html}')
+
+    lines.append('      <ul class="songs">')
+    for song in s.songs:
+        song_name, is_segue, note = format_song(song)
+        class_attr = ' class="segue"' if is_segue else ''
+        if note:
+            lines.append(f'        <li{class_attr}>{song_name} <span class="song-note">{note}</span></li>')
+        else:
+            lines.append(f'        <li{class_attr}>{song_name}</li>')
+    lines.append('      </ul>')
+    lines.append('    </section>')
+
+    return '\n'.join(lines)
+
+
+def render_show_header_html(show: Show) -> str:
+    """Render just the show header (date, venue, notes)"""
+    lines = []
+    lines.append('  <header class="show-header">')
+    lines.append(f'    <h2 class="show-date">{show.formatted_date}</h2>')
+    lines.append(f'    <p class="show-venue">{show.venue_display}</p>')
+    lines.append(f'    <p class="show-location">{show.location_display}</p>')
 
     if show.notes:
-        # Clean up notes (remove surrounding parentheses if present)
         notes = show.notes.strip()
         if notes.startswith('(') and notes.endswith(')'):
             notes = notes[1:-1]
-        html.append(f'    <p class="show-notes">{notes}</p>')
+        lines.append(f'    <p class="show-notes">{notes}</p>')
 
-    html.append('  </header>')
+    lines.append('  </header>')
+    return '\n'.join(lines)
 
-    # Sets
-    html.append('  <div class="sets">')
 
+def render_show_single(show: Show, layout_type: LayoutType) -> str:
+    """Render a show that fits on a single page"""
+    css_class = "show"
+    if layout_type == LayoutType.COMPACT:
+        css_class += " show-compact"
+
+    lines = [f'<article class="{css_class}">']
+    lines.append(render_show_header_html(show))
+    lines.append('  <div class="sets">')
     for s in show.sets:
-        html.append('    <section class="set">')
+        lines.append(render_set_html(s))
+    lines.append('  </div>')
+    lines.append('</article>')
 
-        # Set label
-        label_html = f'<h3 class="set-label">Set {s.label}'
-        if s.annotation:
-            label_html += f' <span class="set-annotation">({s.annotation})</span>'
-        label_html += '</h3>'
-        html.append(f'      {label_html}')
+    return '\n'.join(lines)
 
-        # Songs
-        html.append('      <ul class="songs">')
-        for song in s.songs:
-            song_name, is_segue, note = format_song(song)
-            class_attr = ' class="segue"' if is_segue else ''
 
-            if note:
-                html.append(f'        <li{class_attr}>{song_name} <span class="song-note">{note}</span></li>')
-            else:
-                html.append(f'        <li{class_attr}>{song_name}</li>')
+def render_show_spread(show: Show) -> str:
+    """
+    Render a show as a two-page spread.
 
-        html.append('      </ul>')
-        html.append('    </section>')
+    Structure:
+    - Page 1 (verso/left): Header + first set(s)
+    - Page 2 (recto/right): Remaining sets
 
-    html.append('  </div>')
-    html.append('</article>')
+    Uses CSS to force page 1 to start on a left page.
+    """
+    split_point = show.find_split_point()
+    sets_page1 = show.sets[:split_point]
+    sets_page2 = show.sets[split_point:]
 
-    return '\n'.join(html)
+    lines = []
+
+    # Page 1: Verso (left page) - starts on left via CSS
+    lines.append('<article class="show show-spread show-spread-verso">')
+    lines.append(render_show_header_html(show))
+    lines.append('  <div class="sets">')
+    for s in sets_page1:
+        lines.append(render_set_html(s))
+    lines.append('  </div>')
+    lines.append('</article>')
+
+    # Page 2: Recto (right page)
+    lines.append('<article class="show show-spread show-spread-recto">')
+    # Condensed header for continuity
+    lines.append('  <header class="show-header show-header-continued">')
+    lines.append(f'    <p class="show-date-continued">{show.formatted_date} <span class="continued-label">(continued)</span></p>')
+    lines.append('  </header>')
+    lines.append('  <div class="sets">')
+    for s in sets_page2:
+        lines.append(render_set_html(s))
+    lines.append('  </div>')
+    lines.append('</article>')
+
+    return '\n'.join(lines)
+
+
+def render_show_html(show: Show) -> str:
+    """Render a show with appropriate layout based on its size"""
+    layout_type = show.classify_layout()
+
+    if layout_type == LayoutType.SPREAD:
+        return render_show_spread(show)
+    else:
+        return render_show_single(show, layout_type)
 
 
 def render_year_divider(year: int, show_count: int) -> str:
@@ -231,7 +389,7 @@ def render_volume_title(title: str, subtitle: str, year_range: str, show_count: 
 
 
 def render_html_document(content: str, title: str = "Grateful Dead Setlists",
-                          layout: str = "compact") -> str:
+                         layout: str = "compact") -> str:
     """Wrap content in a full HTML document"""
     return f'''<!DOCTYPE html>
 <html lang="en">
@@ -266,7 +424,8 @@ def generate_book(shows: list[Show], output_path: Path,
                   year: Optional[int] = None,
                   era: Optional[str] = None,
                   layout: str = "compact",
-                  include_year_dividers: bool = True) -> None:
+                  include_year_dividers: bool = True,
+                  debug_layout: bool = False) -> None:
     """Generate an HTML book from shows"""
 
     # Filter shows
@@ -285,8 +444,19 @@ def generate_book(shows: list[Show], output_path: Path,
         year_range = f"{min(years)}–{max(years)}" if years else ""
 
     if not shows:
-        print(f"No shows found for the specified filter")
+        print("No shows found for the specified filter")
         return
+
+    # Layout statistics
+    layout_counts = {LayoutType.SINGLE: 0, LayoutType.COMPACT: 0, LayoutType.SPREAD: 0}
+    for show in shows:
+        layout_counts[show.classify_layout()] += 1
+
+    if debug_layout:
+        print(f"\nLayout breakdown:")
+        print(f"  Single page: {layout_counts[LayoutType.SINGLE]}")
+        print(f"  Compact:     {layout_counts[LayoutType.COMPACT]}")
+        print(f"  Spread:      {layout_counts[LayoutType.SPREAD]}")
 
     # Group by year
     shows_by_year = {}
@@ -327,12 +497,14 @@ def generate_book(shows: list[Show], output_path: Path,
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html)
     print(f"Generated: {output_path}")
+    print(f"  Shows: {len(shows)} (single: {layout_counts[LayoutType.SINGLE]}, "
+          f"compact: {layout_counts[LayoutType.COMPACT]}, spread: {layout_counts[LayoutType.SPREAD]})")
 
 
 def generate_pdf(html_path: Path, pdf_path: Path) -> None:
     """Convert HTML to PDF using weasyprint"""
     try:
-        from weasyprint import HTML, CSS
+        from weasyprint import HTML
         from weasyprint.text.fonts import FontConfiguration
 
         font_config = FontConfiguration()
@@ -347,7 +519,6 @@ def generate_pdf(html_path: Path, pdf_path: Path) -> None:
     except ImportError:
         print("Error: weasyprint not installed.")
         print("Install with: pip install weasyprint")
-        print("Note: weasyprint requires system dependencies. See https://doc.courtbouillon.org/weasyprint/stable/first_steps.html")
 
 
 def main():
@@ -385,6 +556,8 @@ Examples:
     parser.add_argument('--layout', choices=['compact', 'full'],
                         default='compact',
                         help='Layout style: compact (multiple per page) or full (one per page)')
+    parser.add_argument('--debug-layout', action='store_true',
+                        help='Print layout classification details')
 
     args = parser.parse_args()
 
@@ -410,16 +583,15 @@ Examples:
 
     # Generate based on mode
     if args.all:
-        # Generate all eras
         for era in ['60s', '70s', '80s', '90s']:
             html_path = output_dir / f"gd-{era}.html"
-            generate_book(shows, html_path, era=era, layout=args.layout)
+            generate_book(shows, html_path, era=era, layout=args.layout,
+                         debug_layout=args.debug_layout)
 
             if args.pdf:
                 pdf_path = output_dir / f"gd-{era}.pdf"
                 generate_pdf(html_path, pdf_path)
     else:
-        # Single output
         if args.year:
             filename = f"gd-{args.year}"
         elif args.era:
@@ -428,7 +600,8 @@ Examples:
             filename = "gd-complete"
 
         html_path = output_dir / f"{filename}.html"
-        generate_book(shows, html_path, year=args.year, era=args.era, layout=args.layout)
+        generate_book(shows, html_path, year=args.year, era=args.era,
+                     layout=args.layout, debug_layout=args.debug_layout)
 
         if args.pdf:
             pdf_path = output_dir / f"{filename}.pdf"

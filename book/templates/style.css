@@ -272,6 +272,86 @@ body {
     min-height: calc(100vh - 2in);
 }
 
+/* ===========================================
+   Compact Show Layout
+   Used when a show almost fits on one page
+   =========================================== */
+.show-compact {
+    /* Tighter line spacing */
+}
+
+.show-compact .songs li {
+    line-height: 1.4;
+}
+
+.show-compact .set {
+    margin-bottom: 0.6rem;
+}
+
+.show-compact .set-label {
+    margin-bottom: 0.25rem;
+}
+
+.show-compact .show-header {
+    margin-bottom: 0.75rem;
+}
+
+.show-compact .show-notes {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+/* ===========================================
+   Two-Page Spread Layout
+   For shows that need verso/recto pages
+   =========================================== */
+
+/* Force spread to start on a left (even/verso) page */
+.show-spread-verso {
+    page-break-before: left;
+    page-break-after: always;
+    page-break-inside: avoid;
+    border-bottom: none;
+    min-height: 90%;
+}
+
+/* Right (odd/recto) page follows naturally */
+.show-spread-recto {
+    page-break-after: always;
+    page-break-inside: avoid;
+    border-bottom: none;
+    min-height: 90%;
+}
+
+/* Continued header on recto page */
+.show-header-continued {
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.show-date-continued {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-secondary);
+    margin: 0;
+}
+
+.continued-label {
+    font-family: var(--font-serif);
+    font-size: 0.9rem;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--color-muted);
+}
+
+/* Spread pages get slightly different treatment */
+.show-spread .sets {
+    margin-top: 0.75rem;
+}
+
 /* Print-specific adjustments */
 @media print {
     body {
@@ -309,6 +389,58 @@ body {
         padding: 1.5rem;
         margin: 1rem 0;
         background: white;
+    }
+
+    /* Preview spread layouts side-by-side */
+    .show-spread-verso {
+        border-right: 2px dashed #ccc;
+        margin-bottom: 0;
+        border-radius: 4px 0 0 4px;
+    }
+
+    .show-spread-recto {
+        margin-top: 0;
+        border-radius: 0 4px 4px 0;
+        border-left: none;
+    }
+
+    /* Visual indicator for spread shows */
+    .show-spread-verso::before {
+        content: "← VERSO (left page)";
+        display: block;
+        font-family: var(--font-sans);
+        font-size: 0.7rem;
+        color: var(--color-accent);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.75rem;
+        opacity: 0.7;
+    }
+
+    .show-spread-recto::before {
+        content: "RECTO (right page) →";
+        display: block;
+        font-family: var(--font-sans);
+        font-size: 0.7rem;
+        color: var(--color-accent);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.75rem;
+        text-align: right;
+        opacity: 0.7;
+    }
+
+    /* Compact indicator */
+    .show-compact::before {
+        content: "COMPACT";
+        display: block;
+        font-family: var(--font-sans);
+        font-size: 0.65rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.5rem;
+        opacity: 0.5;
     }
 }
 
