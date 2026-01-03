@@ -132,6 +132,8 @@ body {
 
 /* Show Entry */
 .show {
+    height: 8.5in;
+    width: 5.5in;
     page-break-inside: avoid;
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;
