@@ -91,7 +91,7 @@ class Show:
 
         # try to divide as evenly as possible
         num_songs = sum(len(s) for s in self.sets)
-        songs_per_page = num_songs // num_pages
+        songs_per_page = (num_songs + 1) // num_pages
 
         ret = []
         curr_songs = 0
@@ -104,7 +104,7 @@ class Show:
             ret.append([self.sets[next]])
             curr_songs += len(self.sets[next])
 
-            while (songs_per_page * curr_page) < curr_songs:
+            while (songs_per_page * curr_page) > curr_songs + 5:
                 if next >= len(self.sets):
                     break
 
@@ -115,6 +115,8 @@ class Show:
             next += 1
 
         while next < len(self.sets):
+            if len(ret) < num_pages:
+                ret.append([])
             ret[-1].append(self.sets[next])
             next += 1
 

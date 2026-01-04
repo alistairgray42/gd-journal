@@ -53,6 +53,12 @@ body {
     padding: 0;
 }
 
+/* Blank Page for Pagination Control */
+.blank-page {
+    page-break-after: always;
+    height: 100%;
+}
+
 /* Volume Title Page */
 .volume-title-page {
     page: chapter-start;
@@ -228,25 +234,7 @@ body {
 
 /* ===========================================
    Two-Page Spread Layout
-   For shows that need verso/recto pages
    =========================================== */
-
-/* Force spread to start on a left (even/verso) page */
-.show-spread-verso {
-    page-break-before: left;
-    page-break-after: always;
-    page-break-inside: avoid;
-    border-bottom: none;
-    min-height: 90%;
-}
-
-/* Right (odd/recto) page follows naturally */
-.show-spread-recto {
-    page-break-after: always;
-    page-break-inside: avoid;
-    border-bottom: none;
-    min-height: 90%;
-}
 
 /* Continued header on recto page */
 .show-header-continued {
@@ -290,6 +278,11 @@ body {
 
 /* Screen preview styles */
 @media screen {
+    /* Hide blank pages in HTML preview */
+    .blank-page {
+        display: none;
+    }
+
     body {
         max-width: 6in;
         margin: 2rem auto;
@@ -311,45 +304,6 @@ body {
         padding: 1.5rem;
         margin: 1rem 0;
         background: white;
-    }
-
-    /* Preview spread layouts side-by-side */
-    .show-spread-verso {
-        border-right: 2px dashed #ccc;
-        margin-bottom: 0;
-        border-radius: 4px 0 0 4px;
-    }
-
-    .show-spread-recto {
-        margin-top: 0;
-        border-radius: 0 4px 4px 0;
-        border-left: none;
-    }
-
-    /* Visual indicator for spread shows */
-    .show-spread-verso::before {
-        content: "← VERSO (left page)";
-        display: block;
-        font-family: var(--font-sans);
-        font-size: 0.7rem;
-        color: var(--color-accent);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-bottom: 0.75rem;
-        opacity: 0.7;
-    }
-
-    .show-spread-recto::before {
-        content: "RECTO (right page) →";
-        display: block;
-        font-family: var(--font-sans);
-        font-size: 0.7rem;
-        color: var(--color-accent);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-bottom: 0.75rem;
-        text-align: right;
-        opacity: 0.7;
     }
 }
 

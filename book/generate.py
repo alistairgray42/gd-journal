@@ -161,6 +161,11 @@ def render_volume_title(
 """
 
 
+def render_blank_page() -> str:
+    """Render a blank page to adjust pagination"""
+    return '<div class="blank-page"></div>'
+
+
 def render_html_document(content: str, title: str = "Grateful Dead Setlists") -> str:
     """Wrap content in a full HTML document"""
     return f"""<!DOCTYPE html>
@@ -172,7 +177,7 @@ def render_html_document(content: str, title: str = "Grateful Dead Setlists") ->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/templates/style.css">
+  <link rel="stylesheet" href="../templates/style.css">
 </head>
 <body>
 {content}
@@ -245,18 +250,39 @@ def generate_book(
         print(f"  Single page: {layout_counts[LayoutType.SINGLE]}")
         print(f"  Spread:      {layout_counts[LayoutType.SPREAD]}")
 
-    # Build content
+    # Build content with page tracking
     content_parts = []
+    current_page = 1  # Start on page 1 (recto/right)
+    blank_pages_inserted = 0
 
-    # Volume title page
+    # Volume title page takes 1 page
     content_parts.append(
         render_volume_title(
             "Grateful Dead", "Complete Setlists", year_range, len(shows)
         )
     )
+    current_page += 1  # Now on page 2 (verso/left)
 
     for show in shows:
-        content_parts.append(render_show_html(show))
+        layout_type = show.classify_layout()
+
+        # For spreads, ensure we start on a verso (left/even) page
+        if layout_type == LayoutType.SPREAD:
+            # If current page is odd (recto/right), insert blank page
+            if current_page % 2 == 1:
+                content_parts.append(render_blank_page())
+                current_page += 1
+                blank_pages_inserted += 1
+
+            # Spread shows take multiple pages
+            sets_groupings = show.to_page_friendly_set_groupings()
+            pages_needed = len(sets_groupings)
+            content_parts.append(render_show_html(show))
+            current_page += pages_needed
+        else:
+            # Single page shows
+            content_parts.append(render_show_html(show))
+            current_page += 1
 
     # Generate final HTML
     html = render_html_document("\n".join(content_parts), title=title)
@@ -268,15 +294,17 @@ def generate_book(
     print(
         f"  Shows: {len(shows)} (single: {layout_counts[LayoutType.SINGLE]}, spread: {layout_counts[LayoutType.SPREAD]})"
     )
+    print(
+        f"  Pages: ~{current_page - 1} (blank pages inserted: {blank_pages_inserted})"
+    )
 
 
 def generate_pdf(html_path: Path, pdf_path: Path) -> None:
     """Convert HTML to PDF using weasyprint"""
     font_config = FontConfiguration()
 
-    print(f"Generating PDF: {pdf_path}")
     HTML(filename=str(html_path)).write_pdf(str(pdf_path), font_config=font_config)
-    print(f"PDF generated: {pdf_path}")
+    print(f"Generated: {pdf_path}")
 
 
 def main():
