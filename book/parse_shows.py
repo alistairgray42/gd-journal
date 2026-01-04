@@ -1,10 +1,7 @@
 import csv
+from pathlib import Path
 
-from .classes import Set, Show
-
-with open("data/setlist.tsv") as f:
-    rd = csv.reader(f, delimiter="\t", quotechar='"')
-    original_lines = [row for row in rd]
+from classes import Set, Show
 
 
 def shows_from_lines(data: list[list[str]]) -> dict[str, list[Show]]:
@@ -30,7 +27,6 @@ def shows_from_lines(data: list[list[str]]) -> dict[str, list[Show]]:
             else:
                 current_show.sets[len(current_show.sets) - 1].songs.append(song)
 
-            current_show.lines.append("\t".join(row))
             continue
         elif row[2] == "":
             continue
@@ -52,12 +48,14 @@ def shows_from_lines(data: list[list[str]]) -> dict[str, list[Show]]:
 
         if notes.startswith("(early)") or notes.startswith("(late)"):
             current_show.further_id = notes[: notes.index(")") + 1]
-            notes = notes[notes.index(")") + 2 :]
+            notes = notes[notes.index(")") + 1 :]
+
+        notes = notes.strip().strip("()")
+        if len(notes) > 0 and notes[0].islower() and not notes.startswith("w/"):
+            notes = notes[0].upper() + notes[1:]
 
         current_show.notes = notes
         current_show.sets = []
-
-        current_show.lines = ["\t".join(row)]
 
     if current_show is not None:
         shows.append(current_show)
@@ -73,15 +71,14 @@ def shows_from_lines(data: list[list[str]]) -> dict[str, list[Show]]:
     return ret
 
 
-_shows = shows_from_lines(original_lines)
+def get_all_shows(path: Path) -> list[Show]:
+    with open(path, "r") as f:
+        rd = csv.reader(f, delimiter="\t", quotechar='"')
+        lines = [row for row in rd]
 
+    shows = shows_from_lines(lines)
 
-def get_all_shows() -> list[Show]:
     ret = []
-    for v in _shows.values():
+    for v in shows.values():
         ret.extend(v)
     return ret
-
-
-def get_by_date(date: str) -> list[Show]:
-    return _shows[date]

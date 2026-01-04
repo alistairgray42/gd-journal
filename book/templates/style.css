@@ -2,12 +2,13 @@
 
 /* Page Setup for Print */
 @page {
-    size: 6in 9in;  /* Trade paperback size */
+    height: 8.5in;
+    width: 5.5in;
     margin: 0.75in 0.625in 0.875in 0.625in;
 
     @bottom-center {
         content: counter(page);
-        font-family: 'EB Garamond', Georgia, serif;
+        font-family: "EB Garamond", Georgia, serif;
         font-size: 10pt;
         color: #444;
     }
@@ -29,11 +30,11 @@
 :root {
     --color-primary: #1a1a1a;
     --color-secondary: #4a4a4a;
-    --color-accent: #8b0000;  /* Dark red, evokes the Dead's aesthetic */
+    --color-accent: #8b0000; /* Dark red, evokes the Dead's aesthetic */
     --color-muted: #777;
-    --font-serif: 'EB Garamond', 'Crimson Text', Georgia, serif;
-    --font-sans: 'Source Sans Pro', 'Helvetica Neue', sans-serif;
-    --font-display: 'Playfair Display', 'Didot', Georgia, serif;
+    --font-serif: "EB Garamond", "Crimson Text", Georgia, serif;
+    --font-sans: "Source Sans Pro", "Helvetica Neue", sans-serif;
+    --font-display: "Playfair Display", "Didot", Georgia, serif;
 }
 
 * {
@@ -57,7 +58,6 @@ body {
     page: chapter-start;
     page-break-before: always;
     page-break-after: always;
-    height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -100,38 +100,9 @@ body {
     margin-top: 2rem;
 }
 
-/* Year Divider Page */
-.year-divider {
-    page: chapter-start;
-    page-break-before: always;
-    page-break-after: always;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-
-.year-divider .year {
-    font-family: var(--font-display);
-    font-size: 6rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    letter-spacing: 0.02em;
-    margin: 0;
-}
-
-.year-divider .show-count {
-    font-family: var(--font-sans);
-    font-size: 0.85rem;
-    color: var(--color-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    margin-top: 1rem;
-}
-
 /* Show Entry */
-.show {
+.show,
+.volume-title-page {
     height: 8.5in;
     width: 5.5in;
     page-break-inside: avoid;
@@ -247,61 +218,12 @@ body {
     font-size: 0.85em;
 }
 
-/* Compact Layout Option - Multiple shows per page */
-.layout-compact .show {
-    margin-bottom: 1.25rem;
-    padding-bottom: 1rem;
-}
-
-.layout-compact .show-date {
-    font-size: 1.15rem;
-}
-
-.layout-compact .show-venue {
-    font-size: 0.95rem;
-}
-
-.layout-compact .songs li {
-    font-size: 0.9rem;
-    line-height: 1.5;
-}
-
 /* Full Page Layout - One show per page */
 .layout-full .show {
     page-break-after: always;
     border-bottom: none;
     padding-bottom: 0;
     min-height: calc(100vh - 2in);
-}
-
-/* ===========================================
-   Compact Show Layout
-   Used when a show almost fits on one page
-   =========================================== */
-.show-compact {
-    /* Tighter line spacing */
-}
-
-.show-compact .songs li {
-    line-height: 1.4;
-}
-
-.show-compact .set {
-    margin-bottom: 0.6rem;
-}
-
-.show-compact .set-label {
-    margin-bottom: 0.25rem;
-}
-
-.show-compact .show-header {
-    margin-bottom: 0.75rem;
-}
-
-.show-compact .show-notes {
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-    line-height: 1.4;
 }
 
 /* ===========================================
@@ -377,14 +299,12 @@ body {
 
     body > * {
         background: white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    .volume-title-page,
-    .year-divider {
+    .volume-title-page {
         margin: 2rem 0;
         padding: 2rem;
-        min-height: 400px;
     }
 
     .show {
@@ -430,19 +350,6 @@ body {
         margin-bottom: 0.75rem;
         text-align: right;
         opacity: 0.7;
-    }
-
-    /* Compact indicator */
-    .show-compact::before {
-        content: "COMPACT";
-        display: block;
-        font-family: var(--font-sans);
-        font-size: 0.65rem;
-        color: #666;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-bottom: 0.5rem;
-        opacity: 0.5;
     }
 }
 
