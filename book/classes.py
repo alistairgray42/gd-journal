@@ -66,7 +66,7 @@ class Show:
     @property
     def venue_display(self) -> str:
         if self.venue2:
-            return f"{self.venue1} {self.venue2}"
+            return f"{self.venue1}, {self.venue2}"
         return self.venue1
 
     @property
@@ -104,15 +104,19 @@ class Show:
             ret.append([self.sets[next]])
             curr_songs += len(self.sets[next])
 
+            next += 1
+
             while (songs_per_page * curr_page) > curr_songs + 5:
                 if next >= len(self.sets):
+                    break
+
+                # eek!
+                if sum(len(s) for s in ret[-1]) + len(self.sets[next]) > 20:
                     break
 
                 ret[-1].append(self.sets[next])
                 curr_songs += len(self.sets[next])
                 next += 1
-
-            next += 1
 
         while next < len(self.sets):
             if len(ret) < num_pages:

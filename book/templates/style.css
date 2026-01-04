@@ -278,11 +278,6 @@ body {
 
 /* Screen preview styles */
 @media screen {
-    /* Hide blank pages in HTML preview */
-    .blank-page {
-        display: none;
-    }
-
     body {
         max-width: 6in;
         margin: 2rem auto;

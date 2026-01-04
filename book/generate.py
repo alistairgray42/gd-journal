@@ -163,7 +163,7 @@ def render_volume_title(
 
 def render_blank_page() -> str:
     """Render a blank page to adjust pagination"""
-    return '<div class="blank-page"></div>'
+    return '<article class="show"><div class="blank-page"></div></article>'
 
 
 def render_html_document(content: str, title: str = "Grateful Dead Setlists") -> str:
@@ -189,18 +189,20 @@ def render_html_document(content: str, title: str = "Grateful Dead Setlists") ->
 def get_era_dates(era: str) -> tuple[int, int, int, int, int, int, str]:
     """Return start and end dates for an era"""
     eras = {
-        "1": (1966, 1, 8, 1970, 1, 30, "The Bus Came by and I Got On"),
-        "2": (1970, 1, 31, 1972, 6, 17, "Down on Bourbon Street"),
-        "3": (1972, 6, 18, 1974, 10, 20, "I'll Walk You in the Sunshine"),
-        "4": (1974, 10, 21, 1977, 6, 9, "A Rainbow Full of Sound"),
-        "5": (1977, 6, 10, 1979, 2, 17, "The Compass Always Points to Terrapin"),
-        "6": (1979, 2, 18, 1981, 8, 31, "So Far from Me"),
-        "7": (1981, 9, 1, 1983, 12, 31, "Wheel to the Storm and Fly"),
-        "8": (1984, 1, 1, 1986, 7, 7, "Maybe the Sun Is Shining"),
-        "9": (1986, 7, 8, 1988, 12, 31, "We Will Survive"),
-        "10": (1989, 2, 5, 1990, 7, 23, "Shall We Go, You and I While We Can?"),
-        "11": (1990, 7, 24, 1993, 4, 5, "So Many Roads to Ease My Soul"),
-        "12": (1993, 4, 6, 1995, 7, 9, "I Sang Love's Sweet Song"),
+        "1": (1966, 1, 8, 1969, 7, 12, "The Bus Came by and I Got On"),
+        "2": (1969, 8, 2, 1971, 2, 18, "Down on Bourbon Street"),
+        "3": (1971, 2, 19, 1972, 8, 27, "I'll Walk You in the Sunshine"),
+        "4": (1972, 9, 3, 1974, 10, 20, "Just Songs of Our Own"),
+        "5": (1975, 3, 23, 1978, 7, 8, "The Compass Always Points to Terrapin"),
+        "6": (1978, 8, 30, 1980, 7, 1, "When I Awoke the Stars Were Out and Shining"),
+        "7": (1980, 8, 16, 1981, 12, 31, "Let There be Songs to Fill the Air"),
+        "8": (1982, 2, 16, 1984, 5, 8, "Wheel to the Storm and Fly"),
+        "9": (1984, 6, 9, 1986, 7, 7, "And Love Will See You Through"),
+        "10": (1986, 12, 15, 1988, 7, 31, "We Will Get By / We Will Survive"),
+        "11": (1988, 8, 26, 1990, 7, 23, "A Lovely View of Heaven"),
+        "12": (1990, 9, 7, 1992, 3, 24, "Long Way to Go Home"),
+        "13": (1992, 5, 19, 1993, 12, 19, "So Many Roads to Ease My Soul"),
+        "14": (1994, 2, 25, 1995, 7, 9, "I Sang Love's Sweet Song"),
     }
     return eras.get(era, (1966, 1, 8, 1995, 7, 9, "Complete"))
 
@@ -213,6 +215,7 @@ def generate_book(
 ) -> None:
     """Generate an HTML book from shows"""
 
+    nickname = None
     # Filter shows
     if era:
         start_year, start_month, start_day, end_year, end_month, end_day, nickname = (
@@ -255,13 +258,22 @@ def generate_book(
     current_page = 1  # Start on page 1 (recto/right)
     blank_pages_inserted = 0
 
+    volume_title = title
+    if nickname is not None:
+        volume_title = nickname
+
+    volume_subtitle = "Complete Setlists"
+    if era:
+        volume_subtitle = f"Grateful Dead: Complete Setlists #{era}"
+
     # Volume title page takes 1 page
     content_parts.append(
-        render_volume_title(
-            "Grateful Dead", "Complete Setlists", year_range, len(shows)
-        )
+        render_volume_title(volume_title, volume_subtitle, year_range, len(shows))
     )
-    current_page += 1  # Now on page 2 (verso/left)
+    # couple of blank pages for spacing
+    content_parts.append(render_blank_page())
+    content_parts.append(render_blank_page())
+    current_page += 3  # Now on page 4 (recto/right)
 
     for show in shows:
         layout_type = show.classify_layout()
@@ -332,7 +344,22 @@ Examples:
     # Selection
     parser.add_argument(
         "--era",
-        choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+        choices=[
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+        ],
         help="Generate for a specific era",
     )
 
@@ -386,7 +413,7 @@ Examples:
             pdf_path = output_dir / f"{filename}.pdf"
             generate_pdf(html_path, pdf_path)
     else:
-        for era in [str(i) for i in range(1, 13)]:
+        for era in [str(i) for i in range(1, 15)]:
             html_path = output_dir / f"gd-{era}.html"
             generate_book(
                 shows,
