@@ -110,7 +110,7 @@ def main():
         watched_files = [
             script_dir / "templates" / "style.css",
             script_dir / "generate.py",
-            script_dir.parent / "data" / "setlist.tsv",
+            script_dir.parent / "data" / "setlist.jsonl",
             script_dir / "parse_shows.py",
         ]
         watcher_thread = threading.Thread(
@@ -119,7 +119,7 @@ def main():
             daemon=True,
         )
         watcher_thread.start()
-        print("Watching for changes to style.css, generate.py, and setlist.tsv")
+        print("Watching for changes to style.css, generate.py, and setlist.jsonl")
 
     # Start server
     os.chdir(script_dir)

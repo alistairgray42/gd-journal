@@ -322,8 +322,8 @@ Examples:
     parser.add_argument(
         "--data",
         type=Path,
-        default=Path("../data/setlist.tsv"),
-        help="Path to setlist TSV file",
+        default=Path("../data/setlist.jsonl"),
+        help="Path to setlist JSONL file",
     )
     parser.add_argument(
         "--output", type=Path, default=Path("output"), help="Output directory"

@@ -1,4 +1,4 @@
-import csv
+import json
 from pathlib import Path
 
 from classes import Set, Show
@@ -72,13 +72,24 @@ def shows_from_lines(data: list[list[str]]) -> dict[str, list[Show]]:
 
 
 def get_all_shows(path: Path) -> list[Show]:
+    """Read shows from a JSONL file"""
+    shows = []
     with open(path, "r") as f:
-        rd = csv.reader(f, delimiter="\t", quotechar='"')
-        lines = [row for row in rd]
-
-    shows = shows_from_lines(lines)
-
-    ret = []
-    for v in shows.values():
-        ret.extend(v)
-    return ret
+        for line in f:
+            show_dict = json.loads(line)
+            # Reconstruct Show and Set objects from dict
+            show = Show(
+                date=show_dict["date"],
+                further_id=show_dict["further_id"],
+                venue1=show_dict["venue1"],
+                venue2=show_dict["venue2"],
+                city=show_dict["city"],
+                state_or_country=show_dict["state_or_country"],
+                notes=show_dict["notes"],
+                sets=[
+                    Set(label=s["label"], annotation=s["annotation"], songs=s["songs"])
+                    for s in show_dict["sets"]
+                ],
+            )
+            shows.append(show)
+    return shows
